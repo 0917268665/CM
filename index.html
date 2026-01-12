@@ -45,7 +45,7 @@
 
 <div class="container">
     <h1>✈️ 世興-自動填單系統</h1>
- 
+
     <div class="section">
         <div class="section-title">1. 快速貼上 (自動解析團號/日期)</div>
         <textarea id="rawInput" placeholder="範例：昇級版~清州...  CJJ05260206A" oninput="parseRawData()"></textarea>
@@ -80,7 +80,7 @@
         </div>
 
         <div class="grid-row">
-            <div><label>團費 (同業價)</label><input type="number" id="inputFee" value=""></div>
+            <div><label>團費 ({fee})</label><input type="text" id="inputFee" value=""></div>
             <div><label>成團門檻 (人)</label><input type="number" id="inputMinPax" value="16"></div>
         </div>
 
@@ -175,6 +175,12 @@
         document.getElementById('btnOp').disabled = !hasCode;
     }
 
+    // 格式化人數 (有值才加"位")
+    function formatPax(val) {
+        if (val === "" || val === null || val === undefined) return "";
+        return val + "位";
+    }
+
     // 核心生成函式
     function generate(type) {
         // 設定對應檔名
@@ -195,33 +201,36 @@
                 const agent = document.getElementById('inputAgent').value;
                 const paxTotal = document.getElementById('inputPaxTotal').value;
 
-                // 處理團名換行：超過 25 字自動在第 25 字後插入換行符號
+                // 處理團名換行
                 let groupName = document.getElementById('inputGroupName').value;
                 if (groupName.length > 25) {
-                    groupName = groupName.substring(0, 25) + "\n" + groupName.substring(25);
+                    groupName = groupName.substring(0, 28) + "\n" + groupName.substring(28);
                 }
 
                 doc.render({
                     // 新增欄位
                     agency: agency,
                     agent: agent,
-                    clientName: `${agency} ${agent}`, // 相容舊標籤
+                    clientName: `${agency} ${agent}`, 
                     
-                    // 人數：自動補上 "位"
-                    paxAdult: document.getElementById('inputAdults').value + "位",
-                    paxChild: document.getElementById('inputChildren').value + "位",
-                    paxTotal: paxTotal + "位",
-                    pax: paxTotal + "位", // 相容舊標籤
+                    // 人數：使用 formatPax 判斷是否顯示 "位"
+                    paxAdult: formatPax(document.getElementById('inputAdults').value),
+                    paxChild: formatPax(document.getElementById('inputChildren').value),
+                    paxTotal: formatPax(paxTotal),
+                    pax: formatPax(paxTotal), 
 
                     // 原有欄位
                     groupCode: document.getElementById('inputGroupCode').value,
-                    groupName: groupName, // 使用處理過換行的名稱
+                    groupName: groupName, 
                     date: document.getElementById('outputDepartureDate').value,
                     fillDate: toTwDateSimple(document.getElementById('inputFillDate').value),
                     airline: document.getElementById('inputAirline').value,
                     mobile: document.getElementById('inputMobile').value,
                     minPax: document.getElementById('inputMinPax').value,
-                    fee: parseInt(document.getElementById('inputFee').value).toLocaleString(),
+                    
+                    // 團費改為直接讀取文字，不做數值格式化
+                    fee: document.getElementById('inputFee').value,
+                    
                     depositUnit: parseInt(document.getElementById('inputDepositUnit').value).toLocaleString(),
                     totalDeposit: document.getElementById('outputTotalDeposit').value,
                     tips: document.getElementById('inputTips').value,
@@ -238,19 +247,18 @@
                     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 });
                 
-                // 檔名設定：團號 + 旅行社(去字) + 人數 + 單據類型
-                let agencyShort = agency.replace(/旅行社/g, ""); // 去除 "旅行社"
+                // 檔名設定
+                let agencyShort = agency.replace(/旅行社/g, ""); 
                 let fileNameString = `${document.getElementById('inputGroupCode').value}${agencyShort}${paxTotal}位${outputSuffix}.docx`;
                 
                 saveAs(out, fileNameString);
             })
             .catch(error => {
                 console.error(error);
-                alert("❌ 生成失敗：\n" + error.message + "\n\n⚠️ 注意：若您是直接雙擊打開 HTML，瀏覽器會阻擋讀取本機檔案。請使用 Local Server (如 VS Code Live Server) 開啟。");
+                alert("❌ 生成失敗：\n" + error.message + "\n\n⚠️ 注意：若您是直接雙擊打開 HTML，瀏覽器會阻擋讀取本機檔案。請使用 Local Server 開啟。");
             });
     }
 
-    // 工具函式
     function subtractWorkDays(startDate, workDays) {
         let d = new Date(startDate);
         let count = 0;
