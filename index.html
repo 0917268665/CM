@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>世興-自動填單系統</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f6f9; padding: 20px; color: #333; }
+        .container { max-width: 950px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        
+        .section { margin-bottom: 25px; padding: 20px; background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; }
+        .section-title { font-weight: bold; color: #007bff; margin-bottom: 15px; font-size: 1.1em; border-left: 4px solid #007bff; padding-left: 10px; }
+
+        .grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px; }
+        .grid-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 10px; }
+        .full-width { grid-column: span 2; }
+
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.95em; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 15px; }
+        input:focus, textarea:focus { border-color: #007bff; outline: none; background: #f9fcff; }
+        textarea { resize: vertical; height: 80px; }
+
+        .auto-field { background-color: #e9ecef; color: #495057; cursor: not-allowed; font-weight: bold; }
+        
+        .btn-group { display: flex; gap: 15px; margin-top: 20px; }
+        button { flex: 1; color: white; border: none; padding: 15px; font-size: 18px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        button:disabled { background-color: #ccc !important; cursor: not-allowed; }
+        
+        .btn-deposit { background-color: #17a2b8; }
+        .btn-deposit:hover { background-color: #138496; }
+        
+        .btn-op { background-color: #e67e22; }
+        .btn-op:hover { background-color: #d35400; }
+
+        .tag-info { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 4px; font-size: 0.9em; margin-bottom: 20px; border: 1px solid #bee5eb; }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <h1>✈️ 世興-自動填單系統</h1>
+ 
+    <div class="section">
+        <div class="section-title">1. 快速貼上 (自動解析團號/日期)</div>
+        <textarea id="rawInput" placeholder="範例：昇級版~清州...  CJJ05260206A" oninput="parseRawData()"></textarea>
+    </div>
+
+    <div class="section">
+        <div class="section-title">2. 詳細資料輸入</div>
+        
+        <div class="grid-row">
+            <div><label>填單日期</label><input type="date" id="inputFillDate"></div>
+            <div><label>團號</label><input type="text" id="inputGroupCode" class="auto-field" readonly></div>
+        </div>
+
+        <div class="grid-row"><div class="full-width"><label>產品名稱</label><input type="text" id="inputGroupName"></div></div>
+
+        <div class="grid-row">
+            <div><label>旅行社名稱 ({agency})</label><input type="text" id="inputAgency" value="旅行社"></div>
+            <div><label>AGT 名字 ({agent})</label><input type="text" id="inputAgent" value=""></div>
+        </div>
+
+        <div class="grid-row">
+            <div><label>航空公司</label><input type="text" id="inputAirline" value="航空"></div>
+            <div><label>行動電話</label><input type="text" id="inputMobile" value=""></div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px dashed #ccc; margin: 20px 0;">
+
+        <div class="grid-row-3">
+            <div><label>大人人數 ({paxAdult})</label><input type="number" id="inputAdults" value="" min="0" oninput="calculateTotal()"></div>
+            <div><label>小孩人數 ({paxChild})</label><input type="number" id="inputChildren" value="" min="0" oninput="calculateTotal()"></div>
+            <div><label>總人數 ({paxTotal})</label><input type="number" id="inputPaxTotal" class="auto-field" readonly></div>
+        </div>
+
+        <div class="grid-row">
+            <div><label>團費 (同業價)</label><input type="number" id="inputFee" value=""></div>
+            <div><label>成團門檻 (人)</label><input type="number" id="inputMinPax" value="16"></div>
+        </div>
+
+        <div class="grid-row">
+            <div><label>每人訂金</label><input type="number" id="inputDepositUnit" value="" oninput="calculateTotal()"></div>
+            <div><label>訂金總金額 (自動計算)</label><input type="text" id="outputTotalDeposit" class="auto-field" readonly></div>
+        </div>
+
+        <div class="grid-row">
+            <div><label>小費 (每人每天)</label><input type="number" id="inputTips" value="300"></div>
+            <div><label>訂金繳交期限</label><input type="text" id="inputDepositDeadline" placeholder="例: 1/15 17:00前"></div>
+        </div>
+
+        <div class="grid-row"><div class="full-width"><label>備註事項</label><textarea id="inputRemarks" placeholder="輸入額外備註..."></textarea></div></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">3. 票期與業務</div>
+        <div class="grid-row">
+            <div><label>出發日期 (西元)</label><input type="text" id="outputDepartureDate" class="auto-field" readonly></div>
+            <div><label>業務專員</label>
+                <select id="salesSelect">
+                    <option value="陳彥百|0917-268665">陳彥百 0917-268665</option>
+                    <option value="王麗芬|0937-019875">王麗芬 0937-019875</option>
+                    <option value="蔡雅筑|0920-277072">蔡雅筑 0920-277072</option>
+                    <option value="劉玉薇|0989-439193">劉玉薇 0989-439193</option>
+                </select>
+            </div>
+        </div>
+        <div class="grid-row">
+            <div><label>訂金票期 (前7工作天)</label><input type="text" id="outputCheckDepositDate" class="auto-field" readonly></div>
+            <div><label>尾款票期 (前5工作天)</label><input type="text" id="outputCheckFinalDate" class="auto-field" readonly></div>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button id="btnDeposit" class="btn-deposit" onclick="generate('deposit')" disabled>📥 下載訂金單</button>
+        <button id="btnOp" class="btn-op" onclick="generate('op')" disabled>📥 下載作業金單</button>
+    </div>
+</div>
+
+<script>
+    const holidays2026 = ['2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-28', '2026-04-03', '2026-04-06', '2026-05-01', '2026-06-19', '2026-09-25', '2026-10-10'];
+
+    window.onload = function() {
+        document.getElementById('inputFillDate').valueAsDate = new Date();
+        calculateTotal();
+    };
+
+    function parseRawData() {
+        const raw = document.getElementById('rawInput').value;
+        const match = raw.match(/[A-Z]{3}\d{2}(\d{6})[A-Z0-9]*/);
+        const fullCodeMatch = raw.match(/([A-Z]{3}\d{8}[A-Z0-9]*)/);
+
+        if (fullCodeMatch && match) {
+            const fullCode = fullCodeMatch[1];
+            let name = raw.replace(fullCode, '').trim().replace(/[　\s]+$/, '');
+            
+            document.getElementById('inputGroupCode').value = fullCode;
+            document.getElementById('inputGroupName').value = name;
+            calculateDates(match[1]);
+            checkBtnStatus();
+        }
+    }
+
+    function calculateDates(dateStr6) {
+        if (dateStr6 && dateStr6.length === 6) {
+            const y = "20" + dateStr6.substring(0, 2);
+            const m = dateStr6.substring(2, 4);
+            const d = dateStr6.substring(4, 6);
+            const depDate = new Date(`${y}-${m}-${d}`);
+
+            document.getElementById('outputDepartureDate').value = `${y}/${m}/${d}`;
+            document.getElementById('outputCheckDepositDate').value = toTwDate(subtractWorkDays(depDate, 7));
+            document.getElementById('outputCheckFinalDate').value = toTwDate(subtractWorkDays(depDate, 5));
+        }
+    }
+
+    function calculateTotal() {
+        const adults = parseInt(document.getElementById('inputAdults').value) || 0;
+        const children = parseInt(document.getElementById('inputChildren').value) || 0;
+        const unit = parseInt(document.getElementById('inputDepositUnit').value) || 0;
+        
+        const total = adults + children;
+        document.getElementById('inputPaxTotal').value = total;
+        document.getElementById('outputTotalDeposit').value = (total * unit).toLocaleString();
+    }
+
+    function checkBtnStatus() {
+        const hasCode = document.getElementById('inputGroupCode').value !== "";
+        document.getElementById('btnDeposit').disabled = !hasCode;
+        document.getElementById('btnOp').disabled = !hasCode;
+    }
+
+    // 核心生成函式
+    function generate(type) {
+        // 設定對應檔名
+        const fileName = (type === 'deposit') ? 'template_deposit.docx' : 'template_op.docx';
+        const outputSuffix = (type === 'deposit') ? '訂金單' : '作業金單';
+
+        fetch(fileName)
+            .then(response => {
+                if (!response.ok) throw new Error(`找不到 ${fileName}，請確認檔案在同一目錄下。`);
+                return response.arrayBuffer();
+            })
+            .then(content => {
+                const zip = new PizZip(content);
+                const doc = new window.docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+                const salesVal = document.getElementById('salesSelect').value.split('|');
+                const agency = document.getElementById('inputAgency').value;
+                const agent = document.getElementById('inputAgent').value;
+                const paxTotal = document.getElementById('inputPaxTotal').value;
+
+                // 處理團名換行：超過 25 字自動在第 25 字後插入換行符號
+                let groupName = document.getElementById('inputGroupName').value;
+                if (groupName.length > 25) {
+                    groupName = groupName.substring(0, 25) + "\n" + groupName.substring(25);
+                }
+
+                doc.render({
+                    // 新增欄位
+                    agency: agency,
+                    agent: agent,
+                    clientName: `${agency} ${agent}`, // 相容舊標籤
+                    
+                    // 人數：自動補上 "位"
+                    paxAdult: document.getElementById('inputAdults').value + "位",
+                    paxChild: document.getElementById('inputChildren').value + "位",
+                    paxTotal: paxTotal + "位",
+                    pax: paxTotal + "位", // 相容舊標籤
+
+                    // 原有欄位
+                    groupCode: document.getElementById('inputGroupCode').value,
+                    groupName: groupName, // 使用處理過換行的名稱
+                    date: document.getElementById('outputDepartureDate').value,
+                    fillDate: toTwDateSimple(document.getElementById('inputFillDate').value),
+                    airline: document.getElementById('inputAirline').value,
+                    mobile: document.getElementById('inputMobile').value,
+                    minPax: document.getElementById('inputMinPax').value,
+                    fee: parseInt(document.getElementById('inputFee').value).toLocaleString(),
+                    depositUnit: parseInt(document.getElementById('inputDepositUnit').value).toLocaleString(),
+                    totalDeposit: document.getElementById('outputTotalDeposit').value,
+                    tips: document.getElementById('inputTips').value,
+                    depositDeadline: document.getElementById('inputDepositDeadline').value,
+                    checkDepositDate: document.getElementById('outputCheckDepositDate').value,
+                    checkFinalDate: document.getElementById('outputCheckFinalDate').value,
+                    remarks: document.getElementById('inputRemarks').value,
+                    salesName: salesVal[0],
+                    salesPhone: salesVal[1]
+                });
+
+                const out = doc.getZip().generate({
+                    type: "blob",
+                    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                });
+                
+                // 檔名設定：團號 + 旅行社(去字) + 人數 + 單據類型
+                let agencyShort = agency.replace(/旅行社/g, ""); // 去除 "旅行社"
+                let fileNameString = `${document.getElementById('inputGroupCode').value}${agencyShort}${paxTotal}位${outputSuffix}.docx`;
+                
+                saveAs(out, fileNameString);
+            })
+            .catch(error => {
+                console.error(error);
+                alert("❌ 生成失敗：\n" + error.message + "\n\n⚠️ 注意：若您是直接雙擊打開 HTML，瀏覽器會阻擋讀取本機檔案。請使用 Local Server (如 VS Code Live Server) 開啟。");
+            });
+    }
+
+    // 工具函式
+    function subtractWorkDays(startDate, workDays) {
+        let d = new Date(startDate);
+        let count = 0;
+        while (count < workDays) {
+            d.setDate(d.getDate() - 1);
+            const day = d.getDay();
+            const ymd = d.toISOString().split('T')[0];
+            if (day !== 0 && day !== 6 && !holidays2026.includes(ymd)) count++;
+        }
+        return d;
+    }
+
+    function toTwDateSimple(dateStr) {
+        const d = new Date(dateStr);
+        return isNaN(d) ? "" : `${d.getFullYear()-1911}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+    }
+
+    function toTwDate(d) {
+        return `${d.getFullYear()-1911}年${(d.getMonth()+1).toString().padStart(2,'0')}月${d.getDate().toString().padStart(2,'0')}日`;
+    }
+</script>
+
+</body>
+</html>
