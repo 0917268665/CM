@@ -34,6 +34,45 @@
         .btn-op:hover { background-color: #d35400; }
 
         .tag-info { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 4px; font-size: 0.9em; margin-bottom: 20px; border: 1px solid #bee5eb; }
+
+        /* 票期選項按鈕樣式 */
+        .ticket-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 兩列排列 */
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .ticket-option-label {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #fafafa;
+            transition: all 0.2s;
+        }
+        .ticket-option-label:hover {
+            background-color: #eef6ff;
+            border-color: #007bff;
+        }
+        .ticket-option-label input {
+            width: auto;
+            margin-right: 10px;
+        }
+        .ticket-option-label span {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        /* 選中狀態 */
+        .ticket-option-label:has(input:checked) {
+            background-color: #e7f1ff;
+            border-color: #007bff;
+            color: #0056b3;
+        }
+        @media (min-width: 600px) {
+            .ticket-options { grid-template-columns: repeat(4, 1fr); } /* 寬螢幕變四列 */
+        }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.37.11/docxtemplater.js"></script>
@@ -99,6 +138,27 @@
 
     <div class="section">
         <div class="section-title">3. 票期與業務</div>
+        
+        <label>票期推算規則 (點選自動計算)：</label>
+        <div class="ticket-options">
+            <label class="ticket-option-label">
+                <input type="radio" name="ticketRule" value="normal" checked onchange="recalcDates()">
+                <span>1. 正常<br><small style="font-weight:normal; color:#666;">(訂-7 / 尾-5)</small></span>
+            </label>
+            <label class="ticket-option-label">
+                <input type="radio" name="ticketRule" value="lcc" onchange="recalcDates()">
+                <span>2. 廉航<br><small style="font-weight:normal; color:#666;">(訂-15 / 尾-5)</small></span>
+            </label>
+            <label class="ticket-option-label">
+                <input type="radio" name="ticketRule" value="out" onchange="recalcDates()">
+                <span>3. 外縣市<br><small style="font-weight:normal; color:#666;">(訂-10 / 尾-8)</small></span>
+            </label>
+            <label class="ticket-option-label">
+                <input type="radio" name="ticketRule" value="lcc_out" onchange="recalcDates()">
+                <span>4. 廉航+外縣市<br><small style="font-weight:normal; color:#666;">(訂-18 / 尾-8)</small></span>
+            </label>
+        </div>
+
         <div class="grid-row">
             <div><label>出發日期 (西元)</label><input type="text" id="outputDepartureDate" class="auto-field" readonly></div>
             <div><label>業務專員</label>
@@ -111,8 +171,8 @@
             </div>
         </div>
         <div class="grid-row">
-            <div><label>訂金票期 (前7工作天)</label><input type="text" id="outputCheckDepositDate" class="auto-field" readonly></div>
-            <div><label>尾款票期 (前5工作天)</label><input type="text" id="outputCheckFinalDate" class="auto-field" readonly></div>
+            <div><label>訂金票期 (工作天)</label><input type="text" id="outputCheckDepositDate" class="auto-field" readonly></div>
+            <div><label>尾款票期 (工作天)</label><input type="text" id="outputCheckFinalDate" class="auto-field" readonly></div>
         </div>
     </div>
 
@@ -141,22 +201,46 @@
             
             document.getElementById('inputGroupCode').value = fullCode;
             document.getElementById('inputGroupName').value = name;
-            calculateDates(match[1]);
+            
+            // 解析日期並設定 (2026/02/06)
+            const dateStr6 = match[1];
+            const y = "20" + dateStr6.substring(0, 2);
+            const m = dateStr6.substring(2, 4);
+            const d = dateStr6.substring(4, 6);
+            document.getElementById('outputDepartureDate').value = `${y}/${m}/${d}`;
+            
+            // 觸發票期計算 (預設規則)
+            recalcDates();
             checkBtnStatus();
         }
     }
 
-    function calculateDates(dateStr6) {
-        if (dateStr6 && dateStr6.length === 6) {
-            const y = "20" + dateStr6.substring(0, 2);
-            const m = dateStr6.substring(2, 4);
-            const d = dateStr6.substring(4, 6);
-            const depDate = new Date(`${y}-${m}-${d}`);
+    // 重新計算票期 (被按鈕觸發)
+    function recalcDates() {
+        const depStr = document.getElementById('outputDepartureDate').value;
+        if (!depStr) return;
 
-            document.getElementById('outputDepartureDate').value = `${y}/${m}/${d}`;
-            document.getElementById('outputCheckDepositDate').value = toTwDate(subtractWorkDays(depDate, 7));
-            document.getElementById('outputCheckFinalDate').value = toTwDate(subtractWorkDays(depDate, 5));
+        const depDate = new Date(depStr);
+        // 取得目前選取的規則
+        const rule = document.querySelector('input[name="ticketRule"]:checked').value;
+        
+        let depositDays = 7;
+        let finalDays = 5;
+
+        if (rule === 'lcc') {
+            depositDays = 15;
+            finalDays = 5;
+        } else if (rule === 'out') {
+            depositDays = 10;
+            finalDays = 8;
+        } else if (rule === 'lcc_out') {
+            depositDays = 18;
+            finalDays = 8;
         }
+
+        // 計算並填入
+        document.getElementById('outputCheckDepositDate').value = toTwDate(subtractWorkDays(depDate, depositDays));
+        document.getElementById('outputCheckFinalDate').value = toTwDate(subtractWorkDays(depDate, finalDays));
     }
 
     function calculateTotal() {
@@ -183,7 +267,6 @@
 
     // 核心生成函式
     function generate(type) {
-        // 設定對應檔名
         const fileName = (type === 'deposit') ? 'template_deposit.docx' : 'template_op.docx';
         const outputSuffix = (type === 'deposit') ? '訂金單' : '作業金單';
 
@@ -204,22 +287,19 @@
                 // 處理團名換行
                 let groupName = document.getElementById('inputGroupName').value;
                 if (groupName.length > 25) {
-                    groupName = groupName.substring(0, 28) + "\n" + groupName.substring(28);
+                    groupName = groupName.substring(0, 25) + "\n" + groupName.substring(25);
                 }
 
                 doc.render({
-                    // 新增欄位
                     agency: agency,
                     agent: agent,
                     clientName: `${agency} ${agent}`, 
                     
-                    // 人數：使用 formatPax 判斷是否顯示 "位"
                     paxAdult: formatPax(document.getElementById('inputAdults').value),
                     paxChild: formatPax(document.getElementById('inputChildren').value),
                     paxTotal: formatPax(paxTotal),
                     pax: formatPax(paxTotal), 
 
-                    // 原有欄位
                     groupCode: document.getElementById('inputGroupCode').value,
                     groupName: groupName, 
                     date: document.getElementById('outputDepartureDate').value,
@@ -228,7 +308,6 @@
                     mobile: document.getElementById('inputMobile').value,
                     minPax: document.getElementById('inputMinPax').value,
                     
-                    // 團費改為直接讀取文字，不做數值格式化
                     fee: document.getElementById('inputFee').value,
                     
                     depositUnit: parseInt(document.getElementById('inputDepositUnit').value).toLocaleString(),
@@ -247,7 +326,6 @@
                     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 });
                 
-                // 檔名設定
                 let agencyShort = agency.replace(/旅行社/g, ""); 
                 let fileNameString = `${document.getElementById('inputGroupCode').value}${agencyShort}${paxTotal}位${outputSuffix}.docx`;
                 
@@ -255,7 +333,7 @@
             })
             .catch(error => {
                 console.error(error);
-                alert("❌ 生成失敗：\n" + error.message + "\n\n⚠️ 注意：若您是直接雙擊打開 HTML，瀏覽器會阻擋讀取本機檔案。請使用 Local Server 開啟。");
+                alert("❌ 生成失敗：\n" + error.message);
             });
     }
 
