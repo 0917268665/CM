@@ -185,12 +185,16 @@
 <script>
     const holidays2026 = ['2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-28', '2026-04-03', '2026-04-06', '2026-05-01', '2026-06-19', '2026-09-25', '2026-10-10'];
 
+    // ★★★ [NEW] 請在此貼上您的 Google Apps Script 網址 ★★★
+    const TRACKER_URL = 'https://script.google.com/macros/s/您的ID/exec'; 
+
     window.onload = function() {
         document.getElementById('inputFillDate').valueAsDate = new Date();
         calculateTotal();
     };
 
     function parseRawData() {
+        // ... (這段維持原樣不用動) ...
         const raw = document.getElementById('rawInput').value;
         const match = raw.match(/[A-Z]{3}\d{2}(\d{6})[A-Z0-9]*/);
         const fullCodeMatch = raw.match(/([A-Z]{3}\d{8}[A-Z0-9]*)/);
@@ -202,26 +206,23 @@
             document.getElementById('inputGroupCode').value = fullCode;
             document.getElementById('inputGroupName').value = name;
             
-            // 解析日期並設定 (2026/02/06)
             const dateStr6 = match[1];
             const y = "20" + dateStr6.substring(0, 2);
             const m = dateStr6.substring(2, 4);
             const d = dateStr6.substring(4, 6);
             document.getElementById('outputDepartureDate').value = `${y}/${m}/${d}`;
             
-            // 觸發票期計算 (預設規則)
             recalcDates();
             checkBtnStatus();
         }
     }
 
-    // 重新計算票期 (被按鈕觸發)
     function recalcDates() {
+        // ... (這段維持原樣不用動) ...
         const depStr = document.getElementById('outputDepartureDate').value;
         if (!depStr) return;
 
         const depDate = new Date(depStr);
-        // 取得目前選取的規則
         const rule = document.querySelector('input[name="ticketRule"]:checked').value;
         
         let depositDays = 7;
@@ -238,12 +239,12 @@
             finalDays = 8;
         }
 
-        // 計算並填入
         document.getElementById('outputCheckDepositDate').value = toTwDate(subtractWorkDays(depDate, depositDays));
         document.getElementById('outputCheckFinalDate').value = toTwDate(subtractWorkDays(depDate, finalDays));
     }
 
     function calculateTotal() {
+        // ... (這段維持原樣不用動) ...
         const adults = parseInt(document.getElementById('inputAdults').value) || 0;
         const children = parseInt(document.getElementById('inputChildren').value) || 0;
         const unit = parseInt(document.getElementById('inputDepositUnit').value) || 0;
@@ -259,7 +260,6 @@
         document.getElementById('btnOp').disabled = !hasCode;
     }
 
-    // 格式化人數 (有值才加"位")
     function formatPax(val) {
         if (val === "" || val === null || val === undefined) return "";
         return val + "位";
@@ -267,6 +267,10 @@
 
     // 核心生成函式
     function generate(type) {
+        // ★★★ [NEW] 觸發上傳到追蹤系統 ★★★
+        // 為了避免擋到下載流程，我們讓它在背景執行，不影響下載
+        uploadToTracker(); 
+
         const fileName = (type === 'deposit') ? 'template_deposit.docx' : 'template_op.docx';
         const outputSuffix = (type === 'deposit') ? '訂金單' : '作業金單';
 
@@ -284,7 +288,6 @@
                 const agent = document.getElementById('inputAgent').value;
                 const paxTotal = document.getElementById('inputPaxTotal').value;
 
-                // 處理團名換行
                 let groupName = document.getElementById('inputGroupName').value;
                 if (groupName.length > 25) {
                     groupName = groupName.substring(0, 25) + "\n" + groupName.substring(25);
@@ -337,6 +340,7 @@
             });
     }
 
+    // ... (subtractWorkDays, toTwDateSimple, toTwDate 維持原樣) ...
     function subtractWorkDays(startDate, workDays) {
         let d = new Date(startDate);
         let count = 0;
@@ -355,9 +359,45 @@
     }
 
     function toTwDate(d) {
-        return `${d.getFullYear()-1911}年${(d.getMonth()+1).toString().padStart(2,'0')}月${d.getDate().toString().padStart(2,'0')}日`;
+        return `${d.getFullYear()-1911}年${(d.getMonth()+1).toString().padStart(2,'0')}月${d.getDate().toString().padStart(2,'0')日`;
+    }
+
+    // ★★★ [NEW] 新增：上傳到 Google Sheet 追蹤系統的函式 ★★★
+    function uploadToTracker() {
+        if (!TRACKER_URL || TRACKER_URL.includes("您的ID")) {
+            console.warn("尚未設定追蹤系統 URL，略過上傳。");
+            return;
+        }
+
+        const groupCode = document.getElementById('inputGroupCode').value;
+        const agency = document.getElementById('inputAgency').value;
+        const agent = document.getElementById('inputAgent').value;
+        const remark = document.getElementById('inputRemarks').value;
+        
+        // 將旅行社和業務名字合併顯示，方便追蹤
+        const agtCombined = `${agency} ${agent}`.trim();
+
+        if (!groupCode) return; // 沒團號不傳送
+
+        const formData = new FormData();
+        formData.append('action', 'add');
+        formData.append('groupCode', groupCode);
+        formData.append('agt', agtCombined);
+        formData.append('remark', remark);
+
+        // 使用 no-cors 模式發送，這是跨網域呼叫 Google Script 最穩定的方式 (雖然不會回傳成功訊息)
+        fetch(TRACKER_URL, {
+            method: 'POST',
+            body: formData,
+            mode: 'no-cors' 
+        }).then(() => {
+            console.log(`訂單 ${groupCode} 已發送至追蹤系統`);
+            // 如果您想要跳出提示，可以把下面這行註解拿掉：
+            // alert('✅ 訂單已同步加入追蹤清單！');
+        }).catch(err => {
+            console.error('上傳追蹤系統失敗:', err);
+        });
     }
 </script>
-
 </body>
 </html>

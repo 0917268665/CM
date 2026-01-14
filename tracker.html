@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>訂單進度追蹤</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
+        h2 { text-align: center; color: #333; }
+        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+        .card.done { border-left: 6px solid #2ecc71; }
+        .card.pending { border-left: 6px solid #f1c40f; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .group-code { font-size: 1.2em; font-weight: bold; color: #2c3e50; }
+        .agt { font-size: 0.9em; color: #7f8c8d; background: #ecf0f1; padding: 2px 8px; border-radius: 4px; }
+        
+        .status-badge { font-weight: bold; padding: 5px 10px; border-radius: 20px; font-size: 0.9em; display: inline-flex; align-items: center; }
+        .status-done { background-color: #e8f8f5; color: #27ae60; }
+        .status-pending { background-color: #fef9e7; color: #d4ac0d; }
+
+        .details { margin-top: 10px; font-size: 0.9em; color: #555; }
+        .missing-items { color: #e74c3c; margin-top: 5px; }
+        .remark { margin-top: 8px; font-style: italic; color: #95a5a6; border-top: 1px solid #eee; padding-top: 5px; }
+        
+        .loading { text-align: center; padding: 20px; color: #666; }
+        
+        /* 綠色勾勾動畫 */
+        .check-icon::before { content: '✓'; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>📋 訂單進度追蹤</h2>
+    <div id="order-list">
+        <div class="loading">正在載入訂單資料...</div>
+    </div>
+
+<script>
+    // ★★★ 請在此貼上您的 Google Apps Script 網址 ★★★
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycby4PWsogyFH09g2Q3NtSeZbQrFI6by87s7Uh6dTBCSHqxCsyUIrhiDq8CkFMNDLg1Us/exec'; 
+
+    fetch(GAS_URL)
+    .then(res => res.json())
+    .then(data => {
+        const container = document.getElementById('order-list');
+        container.innerHTML = ''; // 清空載入文字
+
+        // 反轉陣列，讓最新的訂單顯示在最上面
+        data.reverse().forEach(order => {
+            const card = document.createElement('div');
+            
+            if (order.isComplete) {
+                // 完成狀態
+                card.className = 'card done';
+                card.innerHTML = `
+                    <div class="header">
+                        <span class="group-code">${order.groupCode}</span>
+                        <span class="agt">${order.agt}</span>
+                    </div>
+                    <div class="status-badge status-done">
+                        <span class="check-icon"></span> 已全數完成
+                    </div>
+                    ${order.remark ? `<div class="remark">備註: ${order.remark}</div>` : ''}
+                `;
+            } else {
+                // 進行中狀態
+                card.className = 'card pending';
+                const missingText = order.pending.join('、');
+                card.innerHTML = `
+                    <div class="header">
+                        <span class="group-code">${order.groupCode}</span>
+                        <span class="agt">${order.agt}</span>
+                    </div>
+                    <div class="status-badge status-pending">
+                        進行中
+                    </div>
+                    <div class="details">
+                        <div class="missing-items">⚠️ 待完成: ${missingText}</div>
+                    </div>
+                    ${order.remark ? `<div class="remark">備註: ${order.remark}</div>` : ''}
+                `;
+            }
+            container.appendChild(card);
+        });
+    })
+    .catch(err => {
+        document.getElementById('order-list').innerHTML = '<div style="color:red; text-align:center;">讀取失敗，請檢查網路或 Script 設定</div>';
+        console.error(err);
+    });
+</script>
+
+</body>
+</html>
