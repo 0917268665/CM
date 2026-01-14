@@ -364,6 +364,16 @@
 
     // ★★★ [NEW] 新增：上傳到 Google Sheet 追蹤系統的函式 ★★★
     function uploadToTracker() {
+        // --- [新增] 守門員邏輯開始 ---
+        const salesRaw = document.getElementById('salesSelect').value; 
+        // 檢查選單的值是否包含 "陳彥百"
+        // 如果「不包含」，就直接結束 (return)，不執行後面的傳送動作
+        if (!salesRaw.includes("陳彥百")) {
+            console.log("非陳彥百的訂單，略過上傳。");
+            return; 
+        }
+        // --- [新增] 守門員邏輯結束 ---
+
         if (!TRACKER_URL || TRACKER_URL.includes("您的ID")) {
             console.warn("尚未設定追蹤系統 URL，略過上傳。");
             return;
@@ -374,10 +384,9 @@
         const agent = document.getElementById('inputAgent').value;
         const remark = document.getElementById('inputRemarks').value;
         
-        // 將旅行社和業務名字合併顯示，方便追蹤
         const agtCombined = `${agency} ${agent}`.trim();
 
-        if (!groupCode) return; // 沒團號不傳送
+        if (!groupCode) return; 
 
         const formData = new FormData();
         formData.append('action', 'add');
@@ -385,15 +394,12 @@
         formData.append('agt', agtCombined);
         formData.append('remark', remark);
 
-        // 使用 no-cors 模式發送，這是跨網域呼叫 Google Script 最穩定的方式 (雖然不會回傳成功訊息)
         fetch(TRACKER_URL, {
             method: 'POST',
             body: formData,
             mode: 'no-cors' 
         }).then(() => {
             console.log(`訂單 ${groupCode} 已發送至追蹤系統`);
-            // 如果您想要跳出提示，可以把下面這行註解拿掉：
-            // alert('✅ 訂單已同步加入追蹤清單！');
         }).catch(err => {
             console.error('上傳追蹤系統失敗:', err);
         });
