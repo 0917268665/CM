@@ -11,26 +11,29 @@
         .loading { text-align: center; padding: 20px; color: #666; }
         
         .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 5px solid #ccc; transition: all 0.3s ease; }
-        .card.done { border-top-color: #2ecc71; } /* 完成變綠色 */
-        .card.pending { border-top-color: #f1c40f; } /* 進行中黃色 */
+        .card.done { border-top-color: #2ecc71; }
+        .card.pending { border-top-color: #f1c40f; }
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .group-code { font-size: 1.1em; font-weight: bold; color: #2c3e50; letter-spacing: 0.5px; }
-        .date-badge { font-size: 0.8em; color: white; background: #3498db; padding: 2px 6px; border-radius: 4px; margin-right: 5px;}
-        .agt { font-size: 0.9em; color: #555; background: #ecf0f1; padding: 2px 8px; border-radius: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .title-row { display: flex; align-items: center; gap: 5px; }
+        
+        .group-code { font-size: 1.1em; font-weight: bold; color: #2c3e50; }
+        .date-badge { font-size: 0.8em; color: white; background: #3498db; padding: 2px 6px; border-radius: 4px; }
+        .agt { font-size: 0.9em; color: #555; background: #ecf0f1; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
 
-        /* 格狀開關區 */
+        /* [新] 資訊列樣式 */
+        .info-row { display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.9em; color: #666; background: #fafafa; padding: 6px; border-radius: 6px; }
+        .info-item { display: flex; align-items: center; gap: 4px; }
+
         .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .checkbox-wrapper { display: flex; align-items: center; background: #fafafa; padding: 8px; border-radius: 6px; border: 1px solid #eee; }
+        .checkbox-wrapper { display: flex; align-items: center; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #eee; }
         .checkbox-wrapper input { margin-right: 8px; transform: scale(1.2); cursor: pointer; }
         .checkbox-wrapper label { font-size: 0.9em; color: #444; cursor: pointer; width: 100%; }
         
-        /* 備註欄 */
         .remark-area { margin-top: 12px; }
-        .remark-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; box-sizing: border-box; transition: border 0.3s; }
+        .remark-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; box-sizing: border-box; }
         .remark-input:focus { border-color: #3498db; outline: none; }
 
-        /* 更新提示 */
         .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.9em; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
         .toast.show { opacity: 1; }
     </style>
@@ -41,11 +44,10 @@
     <div id="order-list">
         <div class="loading">正在讀取最新資料...</div>
     </div>
-    
     <div id="toast" class="toast">已儲存變更</div>
 
 <script>
-    // ★★★ 請確認這裡還是您正確的 GAS 網址 (需 /exec 結尾) ★★★
+    // ★★★ 請確認這裡還是您正確的 GAS 網址 ★★★
     const GAS_URL = 'https://script.google.com/macros/s/AKfycby4PWsogyFH09g2Q3NtSeZbQrFI6by87s7Uh6dTBCSHqxCsyUIrhiDq8CkFMNDLg1Us/exec'; 
 
     fetch(GAS_URL)
@@ -54,14 +56,12 @@
         const container = document.getElementById('order-list');
         container.innerHTML = ''; 
 
-        // ★★★ 自動排序邏輯 ★★★
-        // 根據團號中的日期 (第4-9碼) 進行排序
+        // 排序
         data.sort((a, b) => {
             const getSortDate = (code) => {
-                // 嘗試抓取 6位數日期 (例如 KHH260123...)
                 const match = code.match(/[A-Z0-9]{3}(\d{6})/); 
                 if (match) return parseInt(match[1]); 
-                return 0; // 抓不到日期的放最後
+                return 0; 
             };
             return getSortDate(a.groupCode) - getSortDate(b.groupCode);
         });
@@ -73,9 +73,9 @@
 
         data.forEach(order => {
             const card = document.createElement('div');
-            updateCardStyle(card, order); // 設定顏色
+            updateCardStyle(card, order);
 
-            // 解析日期顯示用
+            // 解析日期
             let dateDisplay = '';
             const match = order.groupCode.match(/[A-Z0-9]{3}(\d{6})/);
             if(match) {
@@ -83,13 +83,25 @@
                 dateDisplay = `<span class="date-badge">${d.substring(2,4)}/${d.substring(4,6)}</span>`;
             }
 
+            // 處理電話連結 (點擊可撥打)
+            const phoneDisplay = order.phone ? `<a href="tel:${order.phone}" style="color:#666;text-decoration:none">${order.phone}</a>` : '無';
+
             card.innerHTML = `
                 <div class="header">
-                    <div>
+                    <div class="title-row">
                         ${dateDisplay}
                         <span class="group-code">${order.groupCode}</span>
                     </div>
                     <span class="agt">${order.agt}</span>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-item">
+                        👥 <span>${order.pax || 0} 人</span>
+                    </div>
+                    <div class="info-item">
+                        📞 <span>${phoneDisplay}</span>
+                    </div>
                 </div>
 
                 <div class="grid-options">
@@ -104,7 +116,7 @@
                 <div class="remark-area">
                     <input type="text" class="remark-input" 
                            value="${order.remark}" 
-                           placeholder="輸入備註..." 
+                           placeholder="備註..." 
                            onchange="updateRemark('${order.groupCode}', this.value)">
                 </div>
             `;
@@ -116,7 +128,6 @@
         document.getElementById('order-list').innerHTML = '<div style="color:red; text-align:center;">讀取失敗，請重新整理</div>';
     });
 
-    // 產生核取方塊的輔助函式
     function renderCheckbox(groupCode, field, label, isChecked) {
         return `
             <div class="checkbox-wrapper">
@@ -128,15 +139,11 @@
         `;
     }
 
-    // 更新狀態 (打勾/取消)
     function updateStatus(groupCode, field, isChecked, checkboxEl) {
         showToast('儲存中...');
-        
-        // 1. 先即時變更卡片顏色 (使用者體驗較好)
         const card = checkboxEl.closest('.card');
         checkCardCompletion(card);
 
-        // 2. 背景傳送給 Google Sheet
         const formData = new FormData();
         formData.append('action', 'update');
         formData.append('groupCode', groupCode);
@@ -148,10 +155,8 @@
         .catch(() => showToast('❌ 儲存失敗'));
     }
 
-    // 更新備註
     function updateRemark(groupCode, value) {
-        showToast('儲存備註中...');
-        
+        showToast('儲存備註...');
         const formData = new FormData();
         formData.append('action', 'update');
         formData.append('groupCode', groupCode);
@@ -159,28 +164,18 @@
         formData.append('value', value);
 
         fetch(GAS_URL, { method: 'POST', body: formData, mode: 'no-cors' })
-        .then(() => showToast('✅ 備註已更新'))
-        .catch(() => showToast('❌ 更新失敗'));
+        .then(() => showToast('✅ 已更新'))
+        .catch(() => showToast('❌ 失敗'));
     }
 
-    // 前端檢查是否全部完成 (用來變更卡片顏色)
     function checkCardCompletion(card) {
         const checkboxes = card.querySelectorAll('input[type="checkbox"]');
         let allChecked = true;
-        checkboxes.forEach(cb => {
-            if (!cb.checked) allChecked = false;
-        });
-
-        if (allChecked) {
-            card.className = 'card done';
-        } else {
-            card.className = 'card pending';
-        }
+        checkboxes.forEach(cb => { if (!cb.checked) allChecked = false; });
+        card.className = allChecked ? 'card done' : 'card pending';
     }
 
-    // 初始載入時設定樣式
     function updateCardStyle(card, order) {
-        // 檢查 order 物件裡的所有狀態
         const allDone = order.ticket && order.passport && order.contract_sent && 
                         order.contract_back && order.confirm && order.transfer;
         card.className = allDone ? 'card done' : 'card pending';
@@ -193,6 +188,5 @@
         setTimeout(() => t.classList.remove('show'), 2000);
     }
 </script>
-
 </body>
 </html>
