@@ -5,49 +5,167 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>訂單管理控制台</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f0f2f5; padding: 15px; max-width: 600px; margin: 0 auto; }
-        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            background-color: #f4f6f8; 
+            padding: 15px; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            color: #333;
+        }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; font-weight: 700; letter-spacing: 1px; }
         
-        .loading { text-align: center; padding: 20px; color: #666; }
+        .loading { text-align: center; padding: 40px; color: #7f8c8d; font-size: 1.1em; }
         
-        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 5px solid #ccc; transition: all 0.3s ease; }
-        .card.done { border-top-color: #2ecc71; }
-        .card.pending { border-top-color: #f1c40f; }
-
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-        .title-row { display: flex; align-items: center; gap: 5px; }
+        /* 卡片設計優化 */
+        .card { 
+            background: white; 
+            border-radius: 16px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            overflow: hidden; /* 讓標題背景不溢出 */
+            transition: transform 0.2s;
+            border: 1px solid #eee;
+        }
         
-        .group-code { font-size: 1.1em; font-weight: bold; color: #2c3e50; }
-        .date-badge { font-size: 0.8em; color: white; background: #3498db; padding: 2px 6px; border-radius: 4px; }
-        .agt { font-size: 0.9em; color: #555; background: #ecf0f1; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
-
-        /* [新] 資訊列樣式 */
-        .info-row { display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.9em; color: #666; background: #fafafa; padding: 6px; border-radius: 6px; }
-        .info-item { display: flex; align-items: center; gap: 4px; }
-
-        .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .checkbox-wrapper { display: flex; align-items: center; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #eee; }
-        .checkbox-wrapper input { margin-right: 8px; transform: scale(1.2); cursor: pointer; }
-        .checkbox-wrapper label { font-size: 0.9em; color: #444; cursor: pointer; width: 100%; }
+        /* 狀態列 - 加大顯示區域 */
+        .card-header-strip {
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #fff;
+            font-weight: bold;
+        }
         
-        .remark-area { margin-top: 12px; }
-        .remark-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; box-sizing: border-box; }
-        .remark-input:focus { border-color: #3498db; outline: none; }
+        /* 完成狀態 (綠色) */
+        .card.done .card-header-strip {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+        /* 進行中狀態 (黃色) */
+        .card.pending .card-header-strip {
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+            color: #fff; /* 黃色背景配白字 */
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
 
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.9em; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
-        .toast.show { opacity: 1; }
+        .card-body { padding: 15px; }
+
+        /* 標題區塊 */
+        .title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .group-code { font-size: 1.25em; font-weight: 800; color: #34495e; letter-spacing: 0.5px; }
+        
+        /* 月份顏色標籤 */
+        .date-badge { 
+            font-size: 0.85em; 
+            color: white; 
+            padding: 4px 8px; 
+            border-radius: 6px; 
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .agt { 
+            font-size: 0.85em; 
+            color: #555; 
+            background: #fff; 
+            padding: 4px 10px; 
+            border-radius: 20px; 
+            white-space: nowrap; 
+            opacity: 0.9;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        /* 資訊列 */
+        .info-row { 
+            display: flex; 
+            gap: 15px; 
+            margin-bottom: 15px; 
+            font-size: 0.95em; 
+            color: #555; 
+            background: #f8f9fa; 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            align-items: center;
+        }
+        .info-item { display: flex; align-items: center; gap: 6px; }
+
+        /* 格狀開關區 - 美化按鈕 */
+        .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        
+        .checkbox-wrapper { position: relative; }
+        .checkbox-wrapper input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+        
+        /* 自定義 Checkbox 樣式 */
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95em;
+            color: #7f8c8d;
+        }
+        
+        /* 勾選時的樣式 */
+        .checkbox-wrapper input:checked + .checkbox-label {
+            border-color: #3498db;
+            background-color: #ebf5fb;
+            color: #2980b9;
+            font-weight: 600;
+        }
+        
+        /* 勾勾圖示 */
+        .checkbox-label::before {
+            content: '';
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            border-radius: 4px;
+            border: 2px solid #ccc;
+            background: white;
+            transition: all 0.2s;
+        }
+        .checkbox-wrapper input:checked + .checkbox-label::before {
+            background-color: #3498db;
+            border-color: #3498db;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' width='14px' height='14px'%3E%3Cpath d='M0 0h24v24H0z' fill='none'/%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* 備註欄 */
+        .remark-area { margin-top: 15px; }
+        .remark-input { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            font-size: 0.95em; 
+            box-sizing: border-box; 
+            background: #fafafa;
+            transition: border 0.3s; 
+        }
+        .remark-input:focus { border-color: #3498db; outline: none; background: #fff; }
+
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(50, 50, 50, 0.9); color: white; padding: 12px 24px; border-radius: 30px; font-size: 0.95em; opacity: 0; transition: all 0.3s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
 
-    <h2>📋 訂單管理控制台</h2>
+    <h2>✈️ 訂單管理控制台</h2>
     <div id="order-list">
-        <div class="loading">正在讀取最新資料...</div>
+        <div class="loading">正在讀取雲端資料...</div>
     </div>
     <div id="toast" class="toast">已儲存變更</div>
 
 <script>
-    // ★★★ 請確認這裡還是您正確的 GAS 網址 ★★★
+    // ★★★ 您的 GAS 網址 ★★★
     const GAS_URL = 'https://script.google.com/macros/s/AKfycby4PWsogyFH09g2Q3NtSeZbQrFI6by87s7Uh6dTBCSHqxCsyUIrhiDq8CkFMNDLg1Us/exec'; 
 
     fetch(GAS_URL)
@@ -56,68 +174,98 @@
         const container = document.getElementById('order-list');
         container.innerHTML = ''; 
 
-        // 排序
+        // ★★★ 新版排序邏輯 ★★★
         data.sort((a, b) => {
-            const getSortDate = (code) => {
-                const match = code.match(/[A-Z0-9]{3}(\d{6})/); 
-                if (match) return parseInt(match[1]); 
-                return 0; 
+            // 解析器：回傳 { date: 數字日期, suffix: 尾碼字串 }
+            const parseCode = (code) => {
+                // 抓取最後面的6位數字(日期) + 剩下的尾碼
+                const match = code.match(/(\d{6})([A-Z]*)$/);
+                if (match) {
+                    return { 
+                        date: parseInt(match[1]), 
+                        suffix: match[2] || '' 
+                    };
+                }
+                return { date: 999999, suffix: '' }; // 抓不到日期的排最後
             };
-            return getSortDate(a.groupCode) - getSortDate(b.groupCode);
+
+            const infoA = parseCode(a.groupCode);
+            const infoB = parseCode(b.groupCode);
+
+            // 1. 先比日期 (小 -> 大)
+            if (infoA.date !== infoB.date) {
+                return infoA.date - infoB.date; 
+            }
+            
+            // 2. 日期一樣，比尾碼 (A -> B -> C)
+            return infoA.suffix.localeCompare(infoB.suffix);
         });
 
         if (data.length === 0) {
-            container.innerHTML = '<div style="text-align:center; color:#999;">目前沒有訂單</div>';
+            container.innerHTML = '<div style="text-align:center; color:#999; margin-top:50px;">目前沒有訂單</div>';
             return;
         }
 
         data.forEach(order => {
             const card = document.createElement('div');
-            updateCardStyle(card, order);
-
-            // 解析日期
+            
+            // 解析日期與月份 (用於顏色)
             let dateDisplay = '';
-            const match = order.groupCode.match(/[A-Z0-9]{3}(\d{6})/);
+            let monthColor = '#95a5a6'; // 預設灰
+            
+            const match = order.groupCode.match(/(\d{6})([A-Z]*)$/);
             if(match) {
-                const d = match[1];
-                dateDisplay = `<span class="date-badge">${d.substring(2,4)}/${d.substring(4,6)}</span>`;
+                const fullDate = match[1]; // 260111
+                const month = fullDate.substring(2,4); // 01
+                const day = fullDate.substring(4,6);   // 11
+                dateDisplay = `${month}/${day}`;
+                monthColor = getMonthColor(month);
             }
 
-            // 處理電話連結 (點擊可撥打)
-            const phoneDisplay = order.phone ? `<a href="tel:${order.phone}" style="color:#666;text-decoration:none">${order.phone}</a>` : '無';
+            // 判斷狀態文字
+            const allDone = checkAllDone(order);
+            const statusText = allDone ? '已完成' : '進行中';
+            const statusClass = allDone ? 'done' : 'pending';
+            card.className = `card ${statusClass}`;
+
+            const phoneDisplay = order.phone ? `<a href="tel:${order.phone}" style="color:#555;text-decoration:none;font-weight:bold;">${order.phone}</a>` : '<span style="color:#bbb;">無</span>';
 
             card.innerHTML = `
-                <div class="header">
-                    <div class="title-row">
-                        ${dateDisplay}
-                        <span class="group-code">${order.groupCode}</span>
-                    </div>
+                <div class="card-header-strip">
+                    <span>${statusText}</span>
                     <span class="agt">${order.agt}</span>
                 </div>
 
-                <div class="info-row">
-                    <div class="info-item">
-                        👥 <span>${order.pax || 0} 人</span>
+                <div class="card-body">
+                    <div class="title-row">
+                        ${dateDisplay ? `<span class="date-badge" style="background:${monthColor}">${dateDisplay}</span>` : ''}
+                        <span class="group-code">${order.groupCode}</span>
                     </div>
-                    <div class="info-item">
-                        📞 <span>${phoneDisplay}</span>
+
+                    <div class="info-row">
+                        <div class="info-item">
+                            👥 <b>${order.pax || 0}</b> 人
+                        </div>
+                        <div class="info-item" style="margin-left:auto;">
+                            📞 ${phoneDisplay}
+                        </div>
                     </div>
-                </div>
 
-                <div class="grid-options">
-                    ${renderCheckbox(order.groupCode, 'ticket', '開票通知', order.ticket)}
-                    ${renderCheckbox(order.groupCode, 'passport', '護照名單', order.passport)}
-                    ${renderCheckbox(order.groupCode, 'contract_sent', '合約給過', order.contract_sent)}
-                    ${renderCheckbox(order.groupCode, 'contract_back', '合約收回', order.contract_back)}
-                    ${renderCheckbox(order.groupCode, 'confirm', '確認單繳', order.confirm)}
-                    ${renderCheckbox(order.groupCode, 'transfer', '代轉開立', order.transfer)}
-                </div>
+                    <div class="grid-options">
+                        ${renderCheckbox(order.groupCode, 'ticket', '開票通知', order.ticket)}
+                        ${renderCheckbox(order.groupCode, 'passport', '護照名單', order.passport)}
+                        ${renderCheckbox(order.groupCode, 'contract_sent', '合約給過', order.contract_sent)}
+                        ${renderCheckbox(order.groupCode, 'contract_back', '合約收回', order.contract_back)}
+                        ${renderCheckbox(order.groupCode, 'confirm', '確認單繳', order.confirm)}
+                        ${renderCheckbox(order.groupCode, 'transfer', '代轉開立', order.transfer)}
+                    </div>
 
-                <div class="remark-area">
-                    <input type="text" class="remark-input" 
-                           value="${order.remark}" 
-                           placeholder="備註..." 
-                           onchange="updateRemark('${order.groupCode}', this.value)">
+                    <div class="remark-area">
+                        <input type="text" class="remark-input" 
+                               value="${order.remark}" 
+                               placeholder="備註..." 
+                               onchange="updateRemark('${order.groupCode}', this.value)">
+                    </div>
                 </div>
             `;
             container.appendChild(card);
@@ -128,13 +276,32 @@
         document.getElementById('order-list').innerHTML = '<div style="color:red; text-align:center;">讀取失敗，請重新整理</div>';
     });
 
+    // ★★★ 月份顏色定義 ★★★
+    function getMonthColor(month) {
+        const colors = {
+            '01': '#E74C3C', // 紅
+            '02': '#E67E22', // 橘
+            '03': '#F1C40F', // 黃
+            '04': '#2ECC71', // 綠
+            '05': '#1ABC9C', // 青
+            '06': '#3498DB', // 藍
+            '07': '#9B59B6', // 紫
+            '08': '#34495E', // 深藍灰
+            '09': '#D35400', // 深橘
+            '10': '#7F8C8D', // 灰
+            '11': '#27AE60', // 深綠
+            '12': '#C0392B'  // 深紅
+        };
+        return colors[month] || '#95a5a6';
+    }
+
     function renderCheckbox(groupCode, field, label, isChecked) {
         return `
             <div class="checkbox-wrapper">
                 <input type="checkbox" id="${groupCode}-${field}" 
                        ${isChecked ? 'checked' : ''} 
                        onchange="updateStatus('${groupCode}', '${field}', this.checked, this)">
-                <label for="${groupCode}-${field}">${label}</label>
+                <label class="checkbox-label" for="${groupCode}-${field}">${label}</label>
             </div>
         `;
     }
@@ -142,7 +309,10 @@
     function updateStatus(groupCode, field, isChecked, checkboxEl) {
         showToast('儲存中...');
         const card = checkboxEl.closest('.card');
-        checkCardCompletion(card);
+        
+        // 前端即時更新 UI (變色)
+        const allDone = checkCardCompletion(card);
+        updateCardHeader(card, allDone);
 
         const formData = new FormData();
         formData.append('action', 'update');
@@ -168,17 +338,23 @@
         .catch(() => showToast('❌ 失敗'));
     }
 
+    function checkAllDone(order) {
+        return order.ticket && order.passport && order.contract_sent && 
+               order.contract_back && order.confirm && order.transfer;
+    }
+
+    // 前端檢查 DOM 狀態
     function checkCardCompletion(card) {
         const checkboxes = card.querySelectorAll('input[type="checkbox"]');
         let allChecked = true;
         checkboxes.forEach(cb => { if (!cb.checked) allChecked = false; });
-        card.className = allChecked ? 'card done' : 'card pending';
+        return allChecked;
     }
 
-    function updateCardStyle(card, order) {
-        const allDone = order.ticket && order.passport && order.contract_sent && 
-                        order.contract_back && order.confirm && order.transfer;
-        card.className = allDone ? 'card done' : 'card pending';
+    function updateCardHeader(card, isDone) {
+        card.className = isDone ? 'card done' : 'card pending';
+        const headerText = card.querySelector('.card-header-strip span:first-child');
+        if(headerText) headerText.innerText = isDone ? '已完成' : '進行中';
     }
 
     function showToast(msg) {
