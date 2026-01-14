@@ -3,91 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>訂單進度追蹤</title>
+    <title>訂單管理控制台</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f9; padding: 20px; max-width: 600px; margin: 0 auto; }
-        h2 { text-align: center; color: #333; }
-        .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
-        .card.done { border-left: 6px solid #2ecc71; }
-        .card.pending { border-left: 6px solid #f1c40f; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .group-code { font-size: 1.2em; font-weight: bold; color: #2c3e50; }
-        .agt { font-size: 0.9em; color: #7f8c8d; background: #ecf0f1; padding: 2px 8px; border-radius: 4px; }
-        
-        .status-badge { font-weight: bold; padding: 5px 10px; border-radius: 20px; font-size: 0.9em; display: inline-flex; align-items: center; }
-        .status-done { background-color: #e8f8f5; color: #27ae60; }
-        .status-pending { background-color: #fef9e7; color: #d4ac0d; }
-
-        .details { margin-top: 10px; font-size: 0.9em; color: #555; }
-        .missing-items { color: #e74c3c; margin-top: 5px; }
-        .remark { margin-top: 8px; font-style: italic; color: #95a5a6; border-top: 1px solid #eee; padding-top: 5px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f0f2f5; padding: 15px; max-width: 600px; margin: 0 auto; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
         
         .loading { text-align: center; padding: 20px; color: #666; }
         
-        /* 綠色勾勾動畫 */
-        .check-icon::before { content: '✓'; margin-right: 5px; }
+        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 5px solid #ccc; transition: all 0.3s ease; }
+        .card.done { border-top-color: #2ecc71; } /* 完成變綠色 */
+        .card.pending { border-top-color: #f1c40f; } /* 進行中黃色 */
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .group-code { font-size: 1.1em; font-weight: bold; color: #2c3e50; letter-spacing: 0.5px; }
+        .date-badge { font-size: 0.8em; color: white; background: #3498db; padding: 2px 6px; border-radius: 4px; margin-right: 5px;}
+        .agt { font-size: 0.9em; color: #555; background: #ecf0f1; padding: 2px 8px; border-radius: 10px; }
+
+        /* 格狀開關區 */
+        .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .checkbox-wrapper { display: flex; align-items: center; background: #fafafa; padding: 8px; border-radius: 6px; border: 1px solid #eee; }
+        .checkbox-wrapper input { margin-right: 8px; transform: scale(1.2); cursor: pointer; }
+        .checkbox-wrapper label { font-size: 0.9em; color: #444; cursor: pointer; width: 100%; }
+        
+        /* 備註欄 */
+        .remark-area { margin-top: 12px; }
+        .remark-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; box-sizing: border-box; transition: border 0.3s; }
+        .remark-input:focus { border-color: #3498db; outline: none; }
+
+        /* 更新提示 */
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.9em; opacity: 0; transition: opacity 0.5s; pointer-events: none; }
+        .toast.show { opacity: 1; }
     </style>
 </head>
 <body>
 
-    <h2>📋 訂單進度追蹤</h2>
+    <h2>📋 訂單管理控制台</h2>
     <div id="order-list">
-        <div class="loading">正在載入訂單資料...</div>
+        <div class="loading">正在讀取最新資料...</div>
     </div>
+    
+    <div id="toast" class="toast">已儲存變更</div>
 
 <script>
-    // ★★★ 請在此貼上您的 Google Apps Script 網址 ★★★
+    // ★★★ 請確認這裡還是您正確的 GAS 網址 (需 /exec 結尾) ★★★
     const GAS_URL = 'https://script.google.com/macros/s/AKfycby4PWsogyFH09g2Q3NtSeZbQrFI6by87s7Uh6dTBCSHqxCsyUIrhiDq8CkFMNDLg1Us/exec'; 
 
     fetch(GAS_URL)
     .then(res => res.json())
     .then(data => {
         const container = document.getElementById('order-list');
-        container.innerHTML = ''; // 清空載入文字
+        container.innerHTML = ''; 
 
-        // 反轉陣列，讓最新的訂單顯示在最上面
-        data.reverse().forEach(order => {
+        // ★★★ 自動排序邏輯 ★★★
+        // 根據團號中的日期 (第4-9碼) 進行排序
+        data.sort((a, b) => {
+            const getSortDate = (code) => {
+                // 嘗試抓取 6位數日期 (例如 KHH260123...)
+                const match = code.match(/[A-Z0-9]{3}(\d{6})/); 
+                if (match) return parseInt(match[1]); 
+                return 0; // 抓不到日期的放最後
+            };
+            return getSortDate(a.groupCode) - getSortDate(b.groupCode);
+        });
+
+        if (data.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#999;">目前沒有訂單</div>';
+            return;
+        }
+
+        data.forEach(order => {
             const card = document.createElement('div');
-            
-            if (order.isComplete) {
-                // 完成狀態
-                card.className = 'card done';
-                card.innerHTML = `
-                    <div class="header">
-                        <span class="group-code">${order.groupCode}</span>
-                        <span class="agt">${order.agt}</span>
-                    </div>
-                    <div class="status-badge status-done">
-                        <span class="check-icon"></span> 已全數完成
-                    </div>
-                    ${order.remark ? `<div class="remark">備註: ${order.remark}</div>` : ''}
-                `;
-            } else {
-                // 進行中狀態
-                card.className = 'card pending';
-                const missingText = order.pending.join('、');
-                card.innerHTML = `
-                    <div class="header">
-                        <span class="group-code">${order.groupCode}</span>
-                        <span class="agt">${order.agt}</span>
-                    </div>
-                    <div class="status-badge status-pending">
-                        進行中
-                    </div>
-                    <div class="details">
-                        <div class="missing-items">⚠️ 待完成: ${missingText}</div>
-                    </div>
-                    ${order.remark ? `<div class="remark">備註: ${order.remark}</div>` : ''}
-                `;
+            updateCardStyle(card, order); // 設定顏色
+
+            // 解析日期顯示用
+            let dateDisplay = '';
+            const match = order.groupCode.match(/[A-Z0-9]{3}(\d{6})/);
+            if(match) {
+                const d = match[1];
+                dateDisplay = `<span class="date-badge">${d.substring(2,4)}/${d.substring(4,6)}</span>`;
             }
+
+            card.innerHTML = `
+                <div class="header">
+                    <div>
+                        ${dateDisplay}
+                        <span class="group-code">${order.groupCode}</span>
+                    </div>
+                    <span class="agt">${order.agt}</span>
+                </div>
+
+                <div class="grid-options">
+                    ${renderCheckbox(order.groupCode, 'ticket', '開票通知', order.ticket)}
+                    ${renderCheckbox(order.groupCode, 'passport', '護照名單', order.passport)}
+                    ${renderCheckbox(order.groupCode, 'contract_sent', '合約給過', order.contract_sent)}
+                    ${renderCheckbox(order.groupCode, 'contract_back', '合約收回', order.contract_back)}
+                    ${renderCheckbox(order.groupCode, 'confirm', '確認單繳', order.confirm)}
+                    ${renderCheckbox(order.groupCode, 'transfer', '代轉開立', order.transfer)}
+                </div>
+
+                <div class="remark-area">
+                    <input type="text" class="remark-input" 
+                           value="${order.remark}" 
+                           placeholder="輸入備註..." 
+                           onchange="updateRemark('${order.groupCode}', this.value)">
+                </div>
+            `;
             container.appendChild(card);
         });
     })
     .catch(err => {
-        document.getElementById('order-list').innerHTML = '<div style="color:red; text-align:center;">讀取失敗，請檢查網路或 Script 設定</div>';
         console.error(err);
+        document.getElementById('order-list').innerHTML = '<div style="color:red; text-align:center;">讀取失敗，請重新整理</div>';
     });
+
+    // 產生核取方塊的輔助函式
+    function renderCheckbox(groupCode, field, label, isChecked) {
+        return `
+            <div class="checkbox-wrapper">
+                <input type="checkbox" id="${groupCode}-${field}" 
+                       ${isChecked ? 'checked' : ''} 
+                       onchange="updateStatus('${groupCode}', '${field}', this.checked, this)">
+                <label for="${groupCode}-${field}">${label}</label>
+            </div>
+        `;
+    }
+
+    // 更新狀態 (打勾/取消)
+    function updateStatus(groupCode, field, isChecked, checkboxEl) {
+        showToast('儲存中...');
+        
+        // 1. 先即時變更卡片顏色 (使用者體驗較好)
+        const card = checkboxEl.closest('.card');
+        checkCardCompletion(card);
+
+        // 2. 背景傳送給 Google Sheet
+        const formData = new FormData();
+        formData.append('action', 'update');
+        formData.append('groupCode', groupCode);
+        formData.append('field', field);
+        formData.append('value', isChecked);
+
+        fetch(GAS_URL, { method: 'POST', body: formData, mode: 'no-cors' })
+        .then(() => showToast('✅ 已儲存'))
+        .catch(() => showToast('❌ 儲存失敗'));
+    }
+
+    // 更新備註
+    function updateRemark(groupCode, value) {
+        showToast('儲存備註中...');
+        
+        const formData = new FormData();
+        formData.append('action', 'update');
+        formData.append('groupCode', groupCode);
+        formData.append('field', 'remark');
+        formData.append('value', value);
+
+        fetch(GAS_URL, { method: 'POST', body: formData, mode: 'no-cors' })
+        .then(() => showToast('✅ 備註已更新'))
+        .catch(() => showToast('❌ 更新失敗'));
+    }
+
+    // 前端檢查是否全部完成 (用來變更卡片顏色)
+    function checkCardCompletion(card) {
+        const checkboxes = card.querySelectorAll('input[type="checkbox"]');
+        let allChecked = true;
+        checkboxes.forEach(cb => {
+            if (!cb.checked) allChecked = false;
+        });
+
+        if (allChecked) {
+            card.className = 'card done';
+        } else {
+            card.className = 'card pending';
+        }
+    }
+
+    // 初始載入時設定樣式
+    function updateCardStyle(card, order) {
+        // 檢查 order 物件裡的所有狀態
+        const allDone = order.ticket && order.passport && order.contract_sent && 
+                        order.contract_back && order.confirm && order.transfer;
+        card.className = allDone ? 'card done' : 'card pending';
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
 </script>
 
 </body>
