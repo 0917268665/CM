@@ -70,6 +70,27 @@
             border-color: #007bff;
             color: #0056b3;
         }
+
+        /* 備註範本按鈕樣式 (新增) */
+        .template-area { margin-top: 8px; }
+        .template-btn {
+            display: inline-block;
+            background-color: #f1f3f5;
+            border: 1px solid #ced4da;
+            color: #495057;
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            transition: 0.2s;
+            text-align: left;
+            flex: none; /* 覆蓋全域 button flex 設定 */
+            width: auto; /* 覆蓋全域 button width 設定 */
+        }
+        .template-btn:hover { background-color: #e2e6ea; border-color: #adb5bd; color: #333; }
+
         @media (min-width: 600px) {
             .ticket-options { grid-template-columns: repeat(4, 1fr); } /* 寬螢幕變四列 */
         }
@@ -133,13 +154,27 @@
             <div><label>訂金繳交期限</label><input type="text" id="inputDepositDeadline" placeholder="例: 1/15 17:00前"></div>
         </div>
 
-        <div class="grid-row"><div class="full-width"><label>備註事項</label><textarea id="inputRemarks" placeholder="輸入額外備註..."></textarea></div></div>
+        <div class="grid-row">
+            <div class="full-width">
+                <label>備註事項</label>
+                <textarea id="inputRemarks" placeholder="輸入額外備註..."></textarea>
+                
+                <div class="template-area">
+                    <label style="font-size:13px; color:#666; margin-bottom:5px; display:block;">👇 快速插入範本 (點擊加入)：</label>
+                    <button class="template-btn" onclick="addRemark('本團航班為廉價航空，付訂後不可更改日期或取消。')">1. 廉航</button>
+                    <button class="template-btn" onclick="addRemark('本團航班為包機，付訂後不可更改日期或取消。')">2. 包機</button>
+                    <button class="template-btn" onclick="addRemark('本團航班為包銷，付訂後不可更改日期或取消。')">3. 包銷</button>
+                    <button class="template-btn" onclick="addRemark('本團為過年機位，付訂後不可更改日期或取消。')">4. 過年機位</button>
+                    <button class="template-btn" onclick="addRemark('本團為連續假期機位，付訂後不可更改日期或取消。')">5. 連假機位</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="section">
         <div class="section-title">3. 票期與業務</div>
         
-        <label>票期推算規則 (點選自動計算)：</label>
+        <label>票期推算規則 (點選自動計算)(有時無法抓到全部放假日，請再自行驗算一下)：</label>
         <div class="ticket-options">
             <label class="ticket-option-label">
                 <input type="radio" name="ticketRule" value="normal" checked onchange="recalcDates()">
@@ -184,8 +219,8 @@
 
 <script>
     const holidays2026 = ['2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-28', '2026-04-03', '2026-04-06', '2026-05-01', '2026-06-19', '2026-09-25', '2026-10-10'];
-
-    // ★★★ [NEW] 請在此貼上您的 Google Apps Script 網址 ★★★
+    
+    // ★★★ 您的 Google Apps Script 追蹤網址 (已保留) ★★★
     const TRACKER_URL = 'https://script.google.com/macros/s/AKfycby4PWsogyFH09g2Q3NtSeZbQrFI6by87s7Uh6dTBCSHqxCsyUIrhiDq8CkFMNDLg1Us/exec';
 
     window.onload = function() {
@@ -194,7 +229,6 @@
     };
 
     function parseRawData() {
-        // ... (這段維持原樣不用動) ...
         const raw = document.getElementById('rawInput').value;
         const match = raw.match(/[A-Z]{3}\d{2}(\d{6})[A-Z0-9]*/);
         const fullCodeMatch = raw.match(/([A-Z]{3}\d{8}[A-Z0-9]*)/);
@@ -217,8 +251,17 @@
         }
     }
 
+    // 新增：插入備註功能
+    function addRemark(text) {
+        const el = document.getElementById('inputRemarks');
+        if (el.value.trim() !== "") {
+            el.value += "\n" + text; // 換行加入
+        } else {
+            el.value = text;
+        }
+    }
+
     function recalcDates() {
-        // ... (這段維持原樣不用動) ...
         const depStr = document.getElementById('outputDepartureDate').value;
         if (!depStr) return;
 
@@ -244,7 +287,6 @@
     }
 
     function calculateTotal() {
-        // ... (這段維持原樣不用動) ...
         const adults = parseInt(document.getElementById('inputAdults').value) || 0;
         const children = parseInt(document.getElementById('inputChildren').value) || 0;
         const unit = parseInt(document.getElementById('inputDepositUnit').value) || 0;
@@ -265,10 +307,8 @@
         return val + "位";
     }
 
-    // 核心生成函式
     function generate(type) {
-        // ★★★ [NEW] 觸發上傳到追蹤系統 ★★★
-        // 為了避免擋到下載流程，我們讓它在背景執行，不影響下載
+        // 觸發上傳到追蹤系統
         uploadToTracker(); 
 
         const fileName = (type === 'deposit') ? 'template_deposit.docx' : 'template_op.docx';
@@ -340,7 +380,6 @@
             });
     }
 
-    // ... (subtractWorkDays, toTwDateSimple, toTwDate 維持原樣) ...
     function subtractWorkDays(startDate, workDays) {
         let d = new Date(startDate);
         let count = 0;
@@ -362,12 +401,9 @@
         return `${d.getFullYear()-1911}年${(d.getMonth()+1).toString().padStart(2,'0')}月${d.getDate().toString().padStart(2,'0')}日`;
     }
 
-    // ★★★ [NEW] 新增：上傳到 Google Sheet 追蹤系統的函式 ★★★
-// 請將原本的 uploadToTracker 函式整段刪除，換成這一段
     function uploadToTracker() {
         const salesRaw = document.getElementById('salesSelect').value; 
         
-        // 1. 檢查是否為陳彥百
         if (!salesRaw.includes("陳彥百")) {
             console.log("非陳彥百的訂單，略過上傳。");
             return; 
@@ -378,15 +414,13 @@
             return;
         }
 
-        // 2. 抓取原本的基本資料
         const groupCode = document.getElementById('inputGroupCode').value;
         const agency = document.getElementById('inputAgency').value;
         const agent = document.getElementById('inputAgent').value;
         const remark = document.getElementById('inputRemarks').value;
         
-        // ★★★ [關鍵修正] 抓取人數與電話 ★★★
-        const pax = document.getElementById('inputPaxTotal').value || 0; // 沒填預設為 0
-        const phone = document.getElementById('inputMobile').value || ""; // 沒填預設空白
+        const pax = document.getElementById('inputPaxTotal').value || 0; 
+        const phone = document.getElementById('inputMobile').value || ""; 
         
         const agtCombined = `${agency} ${agent}`.trim();
 
@@ -397,13 +431,11 @@
         formData.append('groupCode', groupCode);
         formData.append('agt', agtCombined);
         
-        // ★★★ [關鍵修正] 將人數與電話放入信封寄出 ★★★
         formData.append('pax', pax);
         formData.append('phone', phone);
         
         formData.append('remark', remark);
 
-        // 3. 發送
         fetch(TRACKER_URL, {
             method: 'POST',
             body: formData,
