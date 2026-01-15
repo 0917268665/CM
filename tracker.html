@@ -17,6 +17,44 @@
         
         .loading { text-align: center; padding: 40px; color: #7f8c8d; font-size: 1.1em; }
         
+        /* --- [新] 頂部待辦匯總框樣式 --- */
+        .summary-box {
+            background: #fff8e1; /* 淺黃色背景 */
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 10px rgba(255, 193, 7, 0.2);
+            display: none; /* 預設隱藏，有資料才顯示 */
+        }
+        .summary-title {
+            font-weight: bold;
+            color: #d35400;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            font-size: 1.1em;
+        }
+        .summary-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .summary-item {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            border-left: 4px solid #e74c3c;
+            font-size: 0.95em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer; /* 讓滑鼠變手型 */
+        }
+        .summary-code { font-weight: bold; color: #2c3e50; margin-right: 10px; }
+        .summary-content { color: #555; flex-grow: 1; }
+
         /* 卡片設計優化 */
         .card { 
             background: white; 
@@ -138,8 +176,10 @@
             background-repeat: no-repeat;
         }
 
+        /* 輸入框區域 */
+        .input-group { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+
         /* 備註欄 */
-        .remark-area { margin-top: 15px; }
         .remark-input { 
             width: 100%; 
             padding: 10px 12px; 
@@ -152,11 +192,31 @@
         }
         .remark-input:focus { border-color: #3498db; outline: none; background: #fff; }
 
+        /* [新] 待辦事項欄 (紅色系，強調) */
+        .todo-input { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ffccd5; /* 淺紅框 */
+            border-radius: 8px; 
+            font-size: 0.95em; 
+            box-sizing: border-box; 
+            background: #fff0f3; /* 淺紅底 */
+            color: #c0392b;
+        }
+        .todo-input:focus { border-color: #e74c3c; outline: none; background: #fff; }
+        .todo-input::placeholder { color: #e6b0aa; }
+
         .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(50, 50, 50, 0.9); color: white; padding: 12px 24px; border-radius: 30px; font-size: 0.95em; opacity: 0; transition: all 0.3s; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
         .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
+
+    <div id="summary-box" class="summary-box">
+        <div class="summary-title">🔥 待辦事項清單</div>
+        <ul id="summary-list" class="summary-list">
+            </ul>
+    </div>
 
     <h2>✈️ 訂單管理控制台</h2>
     <div id="order-list">
@@ -172,7 +232,13 @@
     .then(res => res.json())
     .then(data => {
         const container = document.getElementById('order-list');
+        const summaryBox = document.getElementById('summary-box');
+        const summaryList = document.getElementById('summary-list');
+        
         container.innerHTML = ''; 
+        summaryList.innerHTML = ''; // 清空匯總清單
+        
+        let hasTodo = false; // 標記是否有待辦
 
         // ★★★ 新版排序邏輯 ★★★
         data.sort((a, b) => {
@@ -207,7 +273,32 @@
         }
 
         data.forEach(order => {
+            // --- [新] 處理匯總邏輯 ---
+            if (order.todo && order.todo.trim() !== "") {
+                hasTodo = true;
+                const li = document.createElement('li');
+                li.className = 'summary-item';
+                // 點擊匯總項目會自動捲動到該卡片
+                li.innerHTML = `
+                    <span class="summary-code">${order.groupCode}</span>
+                    <span class="summary-content">${order.todo}</span>
+                `;
+                li.onclick = () => {
+                    const card = document.getElementById(`card-${order.groupCode}`);
+                    if(card) {
+                        card.scrollIntoView({behavior: "smooth", block: "center"});
+                        // 加個閃爍效果提醒用戶
+                        card.style.transition = "transform 0.2s";
+                        card.style.transform = "scale(1.02)";
+                        setTimeout(() => card.style.transform = "scale(1)", 300);
+                    }
+                };
+                summaryList.appendChild(li);
+            }
+
+            // --- 產生卡片 ---
             const card = document.createElement('div');
+            card.id = `card-${order.groupCode}`; // 設定 ID 方便跳轉
             
             // 解析日期與月份 (用於顏色)
             let dateDisplay = '';
@@ -260,16 +351,28 @@
                         ${renderCheckbox(order.groupCode, 'transfer', '代轉開立', order.transfer)}
                     </div>
 
-                    <div class="remark-area">
+                    <div class="input-group">
+                        <input type="text" class="todo-input" 
+                               value="${order.todo || ''}" 
+                               placeholder="⚠️ 待辦事項 (輸入後上方自動顯示)" 
+                               onchange="updateText('${order.groupCode}', 'todo', this.value)">
+
                         <input type="text" class="remark-input" 
-                               value="${order.remark}" 
+                               value="${order.remark || ''}" 
                                placeholder="備註..." 
-                               onchange="updateRemark('${order.groupCode}', this.value)">
+                               onchange="updateText('${order.groupCode}', 'remark', this.value)">
                     </div>
                 </div>
             `;
             container.appendChild(card);
         });
+
+        // 如果有待辦事項，顯示匯總框
+        if (hasTodo) {
+            summaryBox.style.display = 'block';
+        } else {
+            summaryBox.style.display = 'none';
+        }
     })
     .catch(err => {
         console.error(err);
@@ -325,16 +428,23 @@
         .catch(() => showToast('❌ 儲存失敗'));
     }
 
-    function updateRemark(groupCode, value) {
-        showToast('儲存備註...');
+    // 整合更新文字功能 (備註 & 待辦)
+    function updateText(groupCode, field, value) {
+        showToast('儲存中...');
         const formData = new FormData();
         formData.append('action', 'update');
         formData.append('groupCode', groupCode);
-        formData.append('field', 'remark');
+        formData.append('field', field);
         formData.append('value', value);
 
         fetch(GAS_URL, { method: 'POST', body: formData, mode: 'no-cors' })
-        .then(() => showToast('✅ 已更新'))
+        .then(() => {
+            showToast('✅ 已更新');
+            // 如果改的是待辦事項，簡單提示用戶
+            if(field === 'todo') {
+               setTimeout(() => alert('待辦事項已更新！請重新整理頁面以查看上方匯總。'), 500);
+            }
+        })
         .catch(() => showToast('❌ 失敗'));
     }
 
