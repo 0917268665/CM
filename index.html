@@ -363,26 +363,30 @@
     }
 
     // ★★★ [NEW] 新增：上傳到 Google Sheet 追蹤系統的函式 ★★★
+// 請將原本的 uploadToTracker 函式整段刪除，換成這一段
     function uploadToTracker() {
-        // --- [新增] 守門員邏輯開始 ---
         const salesRaw = document.getElementById('salesSelect').value; 
-        // 檢查選單的值是否包含 "陳彥百"
-        // 如果「不包含」，就直接結束 (return)，不執行後面的傳送動作
+        
+        // 1. 檢查是否為陳彥百
         if (!salesRaw.includes("陳彥百")) {
             console.log("非陳彥百的訂單，略過上傳。");
             return; 
         }
-        // --- [新增] 守門員邏輯結束 ---
 
         if (!TRACKER_URL || TRACKER_URL.includes("您的ID")) {
-            console.warn("尚未設定追蹤系統 URL，略過上傳。");
+            console.warn("尚未設定追蹤系統 URL");
             return;
         }
 
+        // 2. 抓取原本的基本資料
         const groupCode = document.getElementById('inputGroupCode').value;
         const agency = document.getElementById('inputAgency').value;
         const agent = document.getElementById('inputAgent').value;
         const remark = document.getElementById('inputRemarks').value;
+        
+        // ★★★ [關鍵修正] 抓取人數與電話 ★★★
+        const pax = document.getElementById('inputPaxTotal').value || 0; // 沒填預設為 0
+        const phone = document.getElementById('inputMobile').value || ""; // 沒填預設空白
         
         const agtCombined = `${agency} ${agent}`.trim();
 
@@ -392,8 +396,14 @@
         formData.append('action', 'add');
         formData.append('groupCode', groupCode);
         formData.append('agt', agtCombined);
+        
+        // ★★★ [關鍵修正] 將人數與電話放入信封寄出 ★★★
+        formData.append('pax', pax);
+        formData.append('phone', phone);
+        
         formData.append('remark', remark);
 
+        // 3. 發送
         fetch(TRACKER_URL, {
             method: 'POST',
             body: formData,
