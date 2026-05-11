@@ -23,8 +23,8 @@
 
         .auto-field { background-color: #e9ecef; color: #495057; cursor: not-allowed; font-weight: bold; }
         
-        .btn-group { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
-        button { flex: 1; color: white; border: none; padding: 15px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.3s; min-width: 200px;}
+        .btn-group { display: flex; gap: 15px; margin-top: 20px; }
+        button { flex: 1; color: white; border: none; padding: 15px; font-size: 18px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
         button:disabled { background-color: #ccc !important; cursor: not-allowed; }
         
         .btn-deposit { background-color: #17a2b8; }
@@ -32,10 +32,6 @@
         
         .btn-op { background-color: #e67e22; }
         .btn-op:hover { background-color: #d35400; }
-        
-        /* 新增委託書按鈕樣式 */
-        .btn-w { background-color: #28a745; }
-        .btn-w:hover { background-color: #218838; }
 
         .tag-info { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 4px; font-size: 0.9em; margin-bottom: 20px; border: 1px solid #bee5eb; }
 
@@ -92,7 +88,6 @@
             text-align: left;
             flex: none; /* 覆蓋全域 button flex 設定 */
             width: auto; /* 覆蓋全域 button width 設定 */
-            min-width: auto;
         }
         .template-btn:hover { background-color: #e2e6ea; border-color: #adb5bd; color: #333; }
 
@@ -156,7 +151,7 @@
 
         <div class="grid-row">
             <div><label>小費 (每人每天)</label><input type="number" id="inputTips" value="300"></div>
-            <div><label>訂金繳交期限</label><input type="text" id="inputDepositDeadline" placeholder=""></div>
+            <div><label>訂金繳交期限</label><input type="text" id="inputDepositDeadline" placeholder="例: 1/15 17:00前"></div>
         </div>
 
         <div class="grid-row">
@@ -199,9 +194,8 @@
             </label>
         </div>
 
-        <div class="grid-row-3">
+        <div class="grid-row">
             <div><label>出發日期 (西元)</label><input type="text" id="outputDepartureDate" class="auto-field" readonly></div>
-            <div><label>回程日期 (自動推算)</label><input type="text" id="outputReturnDate" class="auto-field" readonly></div>
             <div><label>業務專員</label>
                 <select id="salesSelect">
                     <option value="陳彥百|0917-268665">陳彥百 0917-268665</option>
@@ -220,7 +214,6 @@
     <div class="btn-group">
         <button id="btnDeposit" class="btn-deposit" onclick="generate('deposit')" disabled>📥 下載訂金單</button>
         <button id="btnOp" class="btn-op" onclick="generate('op')" disabled>📥 下載作業金單</button>
-        <button id="btnW" class="btn-w" onclick="generate('w')" disabled>📥 下載同業委託操作契約書</button>
     </div>
 </div>
 
@@ -251,23 +244,8 @@
             const y = "20" + dateStr6.substring(0, 2);
             const m = dateStr6.substring(2, 4);
             const d = dateStr6.substring(4, 6);
-            const depDateStr = `${y}/${m}/${d}`;
-            document.getElementById('outputDepartureDate').value = depDateStr;
+            document.getElementById('outputDepartureDate').value = `${y}/${m}/${d}`;
             
-            // 自動計算回程日期
-            const daysStr = fullCode.substring(3, 5); // 取得團號第4、5字元 (索引3、4)
-            const days = parseInt(daysStr, 10);
-            if (!isNaN(days) && days > 0) {
-                let retDate = new Date(depDateStr);
-                retDate.setDate(retDate.getDate() + (days - 1)); // 出發日也算1天
-                const ry = retDate.getFullYear();
-                const rm = String(retDate.getMonth() + 1).padStart(2, '0');
-                const rd = String(retDate.getDate()).padStart(2, '0');
-                document.getElementById('outputReturnDate').value = `${ry}/${rm}/${rd}`;
-            } else {
-                document.getElementById('outputReturnDate').value = "";
-            }
-
             recalcDates();
             checkBtnStatus();
         }
@@ -322,29 +300,19 @@
         const hasCode = document.getElementById('inputGroupCode').value !== "";
         document.getElementById('btnDeposit').disabled = !hasCode;
         document.getElementById('btnOp').disabled = !hasCode;
-        document.getElementById('btnW').disabled = !hasCode; // 控制新按鈕
     }
 
     function formatPax(val) {
         if (val === "" || val === null || val === undefined) return "";
-        return val + "";
+        return val + "位";
     }
 
     function generate(type) {
         // 觸發上傳到追蹤系統
         uploadToTracker(); 
 
-        let fileName, outputSuffix;
-        if (type === 'deposit') {
-            fileName = 'template_deposit.docx';
-            outputSuffix = '訂金單';
-        } else if (type === 'op') {
-            fileName = 'template_op.docx';
-            outputSuffix = '作業金單';
-        } else if (type === 'w') {
-            fileName = 'template_W.docx';
-            outputSuffix = '同業委託操作契約書';
-        }
+        const fileName = (type === 'deposit') ? 'template_deposit.docx' : 'template_op.docx';
+        const outputSuffix = (type === 'deposit') ? '訂金單' : '作業金單';
 
         fetch(fileName)
             .then(response => {
@@ -378,7 +346,6 @@
                     groupCode: document.getElementById('inputGroupCode').value,
                     groupName: groupName, 
                     date: document.getElementById('outputDepartureDate').value,
-                    returndate: document.getElementById('outputReturnDate') ? document.getElementById('outputReturnDate').value : '', // 寫入回程日期
                     fillDate: toTwDateSimple(document.getElementById('inputFillDate').value),
                     airline: document.getElementById('inputAirline').value,
                     mobile: document.getElementById('inputMobile').value,
@@ -427,7 +394,7 @@
 
     function toTwDateSimple(dateStr) {
         const d = new Date(dateStr);
-        return isNaN(d) ? "" : `${d.getFullYear()-1911}年${(d.getMonth()+1).toString().padStart(2,'0')}月${d.getDate().toString().padStart(2,'0')}日`;
+        return isNaN(d) ? "" : `${d.getFullYear()-1911}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
     }
 
     function toTwDate(d) {
