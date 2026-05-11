@@ -156,7 +156,7 @@
 
         <div class="grid-row">
             <div><label>小費 (每人每天)</label><input type="number" id="inputTips" value="300"></div>
-            <div><label>訂金繳交期限</label><input type="text" id="inputDepositDeadline" placeholder="例: 1/15 17:00前"></div>
+            <div><label>訂金繳交期限</label><input type="text" id="inputDepositDeadline" placeholder=""></div>
         </div>
 
         <div class="grid-row">
@@ -327,7 +327,7 @@
 
     function formatPax(val) {
         if (val === "" || val === null || val === undefined) return "";
-        return val + "席";
+        return val + "";
     }
 
     function generate(type) {
@@ -427,7 +427,7 @@
 
     function toTwDateSimple(dateStr) {
         const d = new Date(dateStr);
-        return isNaN(d) ? "" : `${d.getFullYear()-1911}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+        return isNaN(d) ? "" : `${d.getFullYear()-1911}年${(d.getMonth()+1).toString().padStart(2,'0')}月${d.getDate().toString().padStart(2,'0')}日`;
     }
 
     function toTwDate(d) {
