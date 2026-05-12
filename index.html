@@ -361,9 +361,7 @@
                 const paxTotal = document.getElementById('inputPaxTotal').value;
 
                 let groupName = document.getElementById('inputGroupName').value;
-                if (groupName.length > 25) {
-                    groupName = groupName.substring(0, 25) + "\n" + groupName.substring(25);
-                }
+                
 
                 doc.render({
                     agency: agency,
